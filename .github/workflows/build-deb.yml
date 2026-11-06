@@ -1,0 +1,40 @@
+name: Build Debian Package
+
+on:
+  push:
+    branches:
+      - main  # Hoặc master tùy theo nhánh chính của bạn
+  workflow_dispatch: # Cho phép bấm nút "Run workflow" thủ công trên web
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Bước 1: Tải mã nguồn từ repo về máy ảo GitHub
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Bước 2: Chuẩn bị thư mục đóng gói độc lập để tránh lẫn các file cấu hình Git
+      - name: Prepare Package Folder
+        run: |
+          mkdir my_package
+          # Copy các thư mục cần thiết vào thư mục đóng gói (thêm bớt tùy cấu trúc của bạn)
+          cp -Rf DEBIAN my_package/
+          cp -Rf usr my_package/ 2>/dev/null || true 
+          
+          # Đảm bảo phân quyền chính xác cho các script cài đặt (nếu có postinst, prerm)
+          chmod 755 my_package/DEBIAN/control
+          if [ -f my_package/DEBIAN/postinst ]; then chmod 755 my_package/DEBIAN/postinst; fi
+
+      # Bước 3: Chạy lệnh build file .deb trực tiếp bằng máy ảo Ubuntu
+      - name: Build .deb Package
+        run: |
+          dpkg-deb --build my_package product.deb
+
+      # Bước 4: Lưu file .deb thành sản phẩm (Artifact) để bạn có thể tải về
+      - name: Upload Debian Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: debian-package
+          path: product.deb
